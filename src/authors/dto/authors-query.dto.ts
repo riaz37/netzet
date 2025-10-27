@@ -20,4 +20,3 @@ export class AuthorsQueryDto {
   @Transform(({ value }) => value?.trim())
   search?: string;
 }
-

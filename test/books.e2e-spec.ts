@@ -55,10 +55,11 @@ describe('BooksController (e2e)', () => {
   afterAll(async () => {
     // Clean up test data
     try {
+      // Delete books first due to foreign key constraints
       await bookRepository.query('DELETE FROM books');
       await authorRepository.query('DELETE FROM authors');
     } catch (error) {
-      // Ignore cleanup errors
+      console.warn('Cleanup error:', error);
     }
     await app.close();
   });
@@ -69,7 +70,7 @@ describe('BooksController (e2e)', () => {
         .post('/books')
         .send({
           title: 'The Great Novel',
-          isbn: '978-0-123456-78-9',
+          isbn: '9780123456789',
           genre: 'Fantasy',
           publishedDate: '2020-01-01',
           authorId: testAuthorId,
@@ -78,7 +79,7 @@ describe('BooksController (e2e)', () => {
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
           expect(res.body.title).toBe('The Great Novel');
-          expect(res.body.isbn).toBe('978-0-123456-78-9');
+          expect(res.body.isbn).toBe('9780123456789');
           expect(res.body).toHaveProperty('author');
           expect(res.body.author.id).toBe(testAuthorId);
         });
@@ -89,7 +90,7 @@ describe('BooksController (e2e)', () => {
         .post('/books')
         .send({
           title: 'Test Book',
-          isbn: '978-0-123456-79-6',
+          isbn: '9781234567890',
           authorId: '00000000-0000-0000-0000-000000000000',
         })
         .expect(400);
@@ -145,14 +146,44 @@ describe('BooksController (e2e)', () => {
 
   describe('/books/:id (GET)', () => {
     let createdBookId: string;
+    let localAuthorId: string;
 
     beforeAll(async () => {
-      const book = await bookRepository.save({
-        title: 'Test Book',
-        isbn: '978-0-987654-32-1',
-        authorId: testAuthorId,
+      const author = await authorRepository.save({
+        firstName: 'GET',
+        lastName: 'Author',
       });
-      createdBookId = book.id;
+      localAuthorId = author.id;
+
+      // Create book via API to ensure proper relationships
+      const response = await new Promise<any>((resolve, reject) => {
+        request(app.getHttpServer())
+          .post('/books')
+          .send({
+            title: 'Test Book',
+            isbn: '9780987654321',
+            authorId: localAuthorId,
+          })
+          .expect(201)
+          .end((err, res) => {
+            if (err) reject(err);
+            else resolve(res);
+          });
+      });
+      createdBookId = response.body.id;
+    });
+
+    afterAll(async () => {
+      // Clean up this test's data
+      try {
+        await bookRepository.delete(createdBookId);
+        // Only delete the author if it's not the main test author
+        if (localAuthorId !== testAuthorId) {
+          await authorRepository.delete(localAuthorId);
+        }
+      } catch (error) {
+        console.warn('Individual test cleanup error:', error);
+      }
     });
 
     it('should return a specific book with author', () => {
@@ -175,14 +206,44 @@ describe('BooksController (e2e)', () => {
 
   describe('/books/:id (PATCH)', () => {
     let createdBookId: string;
+    let localAuthorId: string;
 
     beforeAll(async () => {
-      const book = await bookRepository.save({
-        title: 'Update Test Book',
-        isbn: '978-0-111222-33-4',
-        authorId: testAuthorId,
+      const author = await authorRepository.save({
+        firstName: 'PATCH',
+        lastName: 'Author',
       });
-      createdBookId = book.id;
+      localAuthorId = author.id;
+
+      // Create book via API to ensure proper relationships
+      const response = await new Promise<any>((resolve, reject) => {
+        request(app.getHttpServer())
+          .post('/books')
+          .send({
+            title: 'Update Test Book',
+            isbn: '9780111222343',
+            authorId: localAuthorId,
+          })
+          .expect(201)
+          .end((err, res) => {
+            if (err) reject(err);
+            else resolve(res);
+          });
+      });
+      createdBookId = response.body.id;
+    });
+
+    afterAll(async () => {
+      // Clean up this test's data
+      try {
+        await bookRepository.delete(createdBookId);
+        // Only delete the author if it's not the main test author
+        if (localAuthorId !== testAuthorId) {
+          await authorRepository.delete(localAuthorId);
+        }
+      } catch (error) {
+        console.warn('Individual test cleanup error:', error);
+      }
     });
 
     it('should update a book', () => {
@@ -207,18 +268,44 @@ describe('BooksController (e2e)', () => {
 
   describe('/books/:id (DELETE)', () => {
     let createdBookId: string;
+    let localAuthorId: string;
 
     beforeAll(async () => {
       const author = await authorRepository.save({
         firstName: 'Delete',
         lastName: 'Author',
       });
-      const bookData = await bookRepository.save({
-        title: 'Delete Test Book',
-        isbn: '978-0-555666-77-8',
-        authorId: author.id,
+      localAuthorId = author.id;
+
+      // Create book via API to ensure proper relationships
+      const response = await new Promise<any>((resolve, reject) => {
+        request(app.getHttpServer())
+          .post('/books')
+          .send({
+            title: 'Delete Test Book',
+            isbn: '9780555666778',
+            authorId: author.id,
+          })
+          .expect(201)
+          .end((err, res) => {
+            if (err) reject(err);
+            else resolve(res);
+          });
       });
-      createdBookId = bookData.id;
+      createdBookId = response.body.id;
+    });
+
+    afterAll(async () => {
+      // Clean up this test's data
+      try {
+        await bookRepository.delete(createdBookId);
+        // Only delete the author if it's not the main test author
+        if (localAuthorId !== testAuthorId) {
+          await authorRepository.delete(localAuthorId);
+        }
+      } catch (error) {
+        console.warn('Individual test cleanup error:', error);
+      }
     });
 
     it('should delete a book', () => {

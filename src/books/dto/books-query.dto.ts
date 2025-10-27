@@ -24,4 +24,3 @@ export class BooksQueryDto {
   @IsUUID()
   authorId?: string;
 }
-
