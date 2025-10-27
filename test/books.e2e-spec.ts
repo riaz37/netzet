@@ -1,0 +1,235 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+
+describe('BooksController (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let testAuthorId: string;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+
+    // Apply the same global pipes and filters as main.ts
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
+
+    app.useGlobalFilters(new HttpExceptionFilter());
+
+    await app.init();
+
+    prisma = moduleFixture.get<PrismaService>(PrismaService);
+
+    // Create a test author for book operations
+    const author = await prisma.author.create({
+      data: {
+        firstName: 'Test',
+        lastName: 'Author',
+      },
+    });
+    testAuthorId = author.id;
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    await prisma.book.deleteMany({});
+    await prisma.author.deleteMany({});
+    await prisma.$disconnect();
+    await app.close();
+  });
+
+  describe('/books (POST)', () => {
+    it('should create a book', () => {
+      return request(app.getHttpServer())
+        .post('/books')
+        .send({
+          title: 'The Great Novel',
+          isbn: '978-0-123456-78-9',
+          genre: 'Fantasy',
+          publishedDate: '2020-01-01',
+          authorId: testAuthorId,
+        })
+        .expect(201)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id');
+          expect(res.body.title).toBe('The Great Novel');
+          expect(res.body.isbn).toBe('978-0-123456-78-9');
+          expect(res.body).toHaveProperty('author');
+          expect(res.body.author.id).toBe(testAuthorId);
+        });
+    });
+
+    it('should return 400 for invalid author', () => {
+      return request(app.getHttpServer())
+        .post('/books')
+        .send({
+          title: 'Test Book',
+          isbn: '978-0-123456-79-6',
+          authorId: '00000000-0000-0000-0000-000000000000',
+        })
+        .expect(400);
+    });
+
+    it('should return 400 for invalid ISBN', () => {
+      return request(app.getHttpServer())
+        .post('/books')
+        .send({
+          title: 'Test Book',
+          isbn: 'invalid-isbn',
+          authorId: testAuthorId,
+        })
+        .expect(400);
+    });
+  });
+
+  describe('/books (GET)', () => {
+    it('should return all books with pagination', () => {
+      return request(app.getHttpServer())
+        .get('/books')
+        .query({ page: 1, limit: 10 })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('data');
+          expect(res.body).toHaveProperty('total');
+          expect(res.body).toHaveProperty('page');
+          expect(res.body).toHaveProperty('limit');
+          expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+
+    it('should search books by title', () => {
+      return request(app.getHttpServer())
+        .get('/books')
+        .query({ search: 'Great' })
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+
+    it('should filter books by authorId', () => {
+      return request(app.getHttpServer())
+        .get('/books')
+        .query({ authorId: testAuthorId })
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body.data)).toBe(true);
+        });
+    });
+  });
+
+  describe('/books/:id (GET)', () => {
+    let createdBookId: string;
+
+    beforeAll(async () => {
+      const book = await prisma.book.create({
+        data: {
+          title: 'Test Book',
+          isbn: '978-0-987654-32-1',
+          authorId: testAuthorId,
+        },
+        include: { author: true },
+      });
+      createdBookId = book.id;
+    });
+
+    it('should return a specific book with author', () => {
+      return request(app.getHttpServer())
+        .get(`/books/${createdBookId}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toBe(createdBookId);
+          expect(res.body.title).toBe('Test Book');
+          expect(res.body).toHaveProperty('author');
+        });
+    });
+
+    it('should return 404 for non-existent book', () => {
+      return request(app.getHttpServer())
+        .get('/books/00000000-0000-0000-0000-000000000000')
+        .expect(404);
+    });
+  });
+
+  describe('/books/:id (PATCH)', () => {
+    let createdBookId: string;
+
+    beforeAll(async () => {
+      const book = await prisma.book.create({
+        data: {
+          title: 'Update Test Book',
+          isbn: '978-0-111222-33-4',
+          authorId: testAuthorId,
+        },
+      });
+      createdBookId = book.id;
+    });
+
+    it('should update a book', () => {
+      return request(app.getHttpServer())
+        .patch(`/books/${createdBookId}`)
+        .send({
+          genre: 'Science Fiction',
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.genre).toBe('Science Fiction');
+        });
+    });
+
+    it('should return 404 for non-existent book', () => {
+      return request(app.getHttpServer())
+        .patch('/books/00000000-0000-0000-0000-000000000000')
+        .send({ genre: 'Test' })
+        .expect(404);
+    });
+  });
+
+  describe('/books/:id (DELETE)', () => {
+    let createdBookId: string;
+
+    beforeAll(async () => {
+      const book = await prisma.author.create({
+        data: {
+          firstName: 'Delete',
+          lastName: 'Author',
+        },
+      });
+      const bookData = await prisma.book.create({
+        data: {
+          title: 'Delete Test Book',
+          isbn: '978-0-555666-77-8',
+          authorId: book.id,
+        },
+      });
+      createdBookId = bookData.id;
+    });
+
+    it('should delete a book', () => {
+      return request(app.getHttpServer())
+        .delete(`/books/${createdBookId}`)
+        .expect(204);
+    });
+
+    it('should return 404 when deleting non-existent book', () => {
+      return request(app.getHttpServer())
+        .delete('/books/00000000-0000-0000-0000-000000000000')
+        .expect(404);
+    });
+  });
+});
