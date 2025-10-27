@@ -13,16 +13,7 @@ import {
 import { AuthorsService } from './authors.service';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
-import { IsString, IsOptional } from 'class-validator';
-import { Transform } from 'class-transformer';
-
-class SearchDto {
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value?.trim())
-  search?: string;
-}
+import { AuthorsQueryDto } from './dto/authors-query.dto';
 
 @Controller('authors')
 export class AuthorsController {
@@ -34,11 +25,11 @@ export class AuthorsController {
   }
 
   @Get()
-  findAll(@Query() pagination: PaginationDto, @Query() search: SearchDto) {
+  findAll(@Query() query: AuthorsQueryDto) {
     return this.authorsService.findAll(
-      pagination.page,
-      pagination.limit,
-      search.search,
+      query.page || 1,
+      query.limit || 10,
+      query.search,
     );
   }
 

@@ -13,20 +13,7 @@ import {
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
-import { IsString, IsOptional, IsUUID } from 'class-validator';
-import { Transform } from 'class-transformer';
-
-class SearchDto {
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value?.trim())
-  search?: string;
-
-  @IsOptional()
-  @IsUUID()
-  authorId?: string;
-}
+import { BooksQueryDto } from './dto/books-query.dto';
 
 @Controller('books')
 export class BooksController {
@@ -38,12 +25,12 @@ export class BooksController {
   }
 
   @Get()
-  findAll(@Query() pagination: PaginationDto, @Query() search: SearchDto) {
+  findAll(@Query() query: BooksQueryDto) {
     return this.booksService.findAll(
-      pagination.page,
-      pagination.limit,
-      search.search,
-      search.authorId,
+      query.page || 1,
+      query.limit || 10,
+      query.search,
+      query.authorId,
     );
   }
 

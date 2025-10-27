@@ -3,18 +3,25 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
-import { Book, Prisma } from '@prisma/client';
+import { Book } from '../entities/book.entity';
+import { Author } from '../entities/author.entity';
 
 @Injectable()
 export class BooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Book)
+    private readonly bookRepository: Repository<Book>,
+    @InjectRepository(Author)
+    private readonly authorRepository: Repository<Author>,
+  ) {}
 
   async create(createBookDto: CreateBookDto): Promise<Book> {
     // Check if author exists
-    const author = await this.prisma.author.findUnique({
+    const author = await this.authorRepository.findOne({
       where: { id: createBookDto.authorId },
     });
 
@@ -24,19 +31,19 @@ export class BooksService {
       );
     }
 
-    try {
-      return await this.prisma.book.create({
-        data: createBookDto,
-        include: { author: true },
-      });
-    } catch (error) {
-      if (error.code === 'P2002') {
-        throw new BadRequestException(
-          `Book with ISBN ${createBookDto.isbn} already exists`,
-        );
-      }
-      throw error;
+    // Check if ISBN already exists
+    const existingBook = await this.bookRepository.findOne({
+      where: { isbn: createBookDto.isbn },
+    });
+
+    if (existingBook) {
+      throw new BadRequestException(
+        `Book with ISBN ${createBookDto.isbn} already exists`,
+      );
     }
+
+    const book = this.bookRepository.create(createBookDto);
+    return this.bookRepository.save(book);
   }
 
   async findAll(
@@ -46,37 +53,33 @@ export class BooksService {
     authorId?: string,
   ): Promise<{ data: Book[]; total: number; page: number; limit: number }> {
     const skip = (page - 1) * limit;
-    const where: Prisma.BookWhereInput = {};
+
+    const queryBuilder = this.bookRepository
+      .createQueryBuilder('book')
+      .leftJoinAndSelect('book.author', 'author');
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { isbn: { contains: search, mode: 'insensitive' } },
-      ];
+      queryBuilder.where(
+        '(book.title ILIKE :search OR book.isbn ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
     if (authorId) {
-      where.authorId = authorId;
+      queryBuilder.andWhere('book.authorId = :authorId', { authorId });
     }
 
-    const [data, total] = await Promise.all([
-      this.prisma.book.findMany({
-        where,
-        skip,
-        take: limit,
-        include: { author: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.book.count({ where }),
-    ]);
+    queryBuilder.skip(skip).take(limit).orderBy('book.createdAt', 'DESC');
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return { data, total, page, limit };
   }
 
   async findOne(id: string): Promise<Book> {
-    const book = await this.prisma.book.findUnique({
+    const book = await this.bookRepository.findOne({
       where: { id },
-      include: { author: true },
+      relations: ['author'],
     });
 
     if (!book) {
@@ -91,7 +94,7 @@ export class BooksService {
 
     // If updating authorId, check if new author exists
     if (updateBookDto.authorId) {
-      const author = await this.prisma.author.findUnique({
+      const author = await this.authorRepository.findOne({
         where: { id: updateBookDto.authorId },
       });
 
@@ -102,27 +105,25 @@ export class BooksService {
       }
     }
 
-    try {
-      return await this.prisma.book.update({
-        where: { id },
-        data: updateBookDto,
-        include: { author: true },
+    // If updating ISBN, check if it already exists
+    if (updateBookDto.isbn) {
+      const existingBook = await this.bookRepository.findOne({
+        where: { isbn: updateBookDto.isbn },
       });
-    } catch (error) {
-      if (error.code === 'P2002') {
+
+      if (existingBook && existingBook.id !== id) {
         throw new BadRequestException(
           `Book with ISBN ${updateBookDto.isbn} already exists`,
         );
       }
-      throw error;
     }
+
+    await this.bookRepository.update(id, updateBookDto);
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id); // Check if exists
-
-    await this.prisma.book.delete({
-      where: { id },
-    });
+    await this.bookRepository.delete(id);
   }
 }

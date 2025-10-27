@@ -1,24 +1,37 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BooksService } from './books.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Book } from '../entities/book.entity';
+import { Author } from '../entities/author.entity';
 
 describe('BooksService', () => {
   let service: BooksService;
-  let prismaService: PrismaService;
+  let bookRepository: Repository<Book>;
+  let authorRepository: Repository<Author>;
 
-  const mockPrismaService = {
-    book: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-    author: {
-      findUnique: jest.fn(),
-    },
+  const mockBookQueryBuilder = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn(),
+  };
+
+  const mockBookRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockBookQueryBuilder),
+  };
+
+  const mockAuthorRepository = {
+    findOne: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -26,14 +39,21 @@ describe('BooksService', () => {
       providers: [
         BooksService,
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: getRepositoryToken(Book),
+          useValue: mockBookRepository,
+        },
+        {
+          provide: getRepositoryToken(Author),
+          useValue: mockAuthorRepository,
         },
       ],
     }).compile();
 
     service = module.get<BooksService>(BooksService);
-    prismaService = module.get<PrismaService>(PrismaService);
+    bookRepository = module.get<Repository<Book>>(getRepositoryToken(Book));
+    authorRepository = module.get<Repository<Author>>(
+      getRepositoryToken(Author),
+    );
   });
 
   afterEach(() => {
@@ -69,22 +89,20 @@ describe('BooksService', () => {
         ...createBookDto,
         createdAt: new Date(),
         updatedAt: new Date(),
-        author,
       };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(author);
-      mockPrismaService.book.create.mockResolvedValue({
-        ...expectedBook,
-        author,
-      });
+      mockAuthorRepository.findOne.mockResolvedValue(author);
+      mockBookRepository.create.mockReturnValue(expectedBook);
+      mockBookRepository.save.mockResolvedValue(expectedBook);
 
       const result = await service.create(createBookDto);
 
-      expect(result).toEqual({ ...expectedBook, author });
-      expect(mockPrismaService.author.findUnique).toHaveBeenCalledWith({
+      expect(result).toEqual(expectedBook);
+      expect(mockAuthorRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
       });
-      expect(mockPrismaService.book.create).toHaveBeenCalled();
+      expect(mockBookRepository.create).toHaveBeenCalledWith(createBookDto);
+      expect(mockBookRepository.save).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if author does not exist', async () => {
@@ -94,7 +112,7 @@ describe('BooksService', () => {
         authorId: '999',
       };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(null);
+      mockAuthorRepository.findOne.mockResolvedValue(null);
 
       await expect(service.create(createBookDto)).rejects.toThrow(
         BadRequestException,
@@ -118,11 +136,8 @@ describe('BooksService', () => {
         updatedAt: new Date(),
       };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(author);
-      mockPrismaService.book.create.mockRejectedValue({
-        code: 'P2002',
-        meta: { target: ['isbn'] },
-      });
+      mockAuthorRepository.findOne.mockResolvedValue(author);
+      mockBookRepository.findOne.mockResolvedValue({ id: '2' }); // ISBN exists
 
       await expect(service.create(createBookDto)).rejects.toThrow(
         BadRequestException,
@@ -154,15 +169,13 @@ describe('BooksService', () => {
         },
       ];
 
-      mockPrismaService.book.findMany.mockResolvedValue(books);
-      mockPrismaService.book.count.mockResolvedValue(1);
+      mockBookQueryBuilder.getManyAndCount.mockResolvedValue([books, 1]);
 
       const result = await service.findAll(1, 10);
 
       expect(result.data).toEqual(books);
       expect(result.total).toBe(1);
-      expect(mockPrismaService.book.findMany).toHaveBeenCalled();
-      expect(mockPrismaService.book.count).toHaveBeenCalled();
+      expect(mockBookQueryBuilder.getManyAndCount).toHaveBeenCalled();
     });
   });
 
@@ -188,19 +201,19 @@ describe('BooksService', () => {
         },
       };
 
-      mockPrismaService.book.findUnique.mockResolvedValue(book);
+      mockBookRepository.findOne.mockResolvedValue(book);
 
       const result = await service.findOne('1');
 
       expect(result).toEqual(book);
-      expect(mockPrismaService.book.findUnique).toHaveBeenCalledWith({
+      expect(mockBookRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
-        include: { author: true },
+        relations: ['author'],
       });
     });
 
     it('should throw NotFoundException if book does not exist', async () => {
-      mockPrismaService.book.findUnique.mockResolvedValue(null);
+      mockBookRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
     });
@@ -231,19 +244,14 @@ describe('BooksService', () => {
       const updateDto = { genre: 'Sci-Fi' };
       const updatedBook = { ...existingBook, ...updateDto };
 
-      mockPrismaService.book.findUnique.mockResolvedValue(existingBook);
-      mockPrismaService.book.update.mockResolvedValue({
-        ...updatedBook,
-        author: existingBook.author,
-      });
+      mockBookRepository.findOne.mockResolvedValueOnce(existingBook);
+      mockBookRepository.update.mockResolvedValue(undefined);
+      mockBookRepository.findOne.mockResolvedValueOnce(updatedBook);
 
       const result = await service.update('1', updateDto);
 
-      expect(mockPrismaService.book.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: updateDto,
-        include: { author: true },
-      });
+      expect(result).toEqual(updatedBook);
+      expect(mockBookRepository.update).toHaveBeenCalledWith('1', updateDto);
     });
   });
 
@@ -269,14 +277,12 @@ describe('BooksService', () => {
         },
       };
 
-      mockPrismaService.book.findUnique.mockResolvedValue(book);
-      mockPrismaService.book.delete.mockResolvedValue(book);
+      mockBookRepository.findOne.mockResolvedValue(book);
+      mockBookRepository.delete.mockResolvedValue({ affected: 1 });
 
       await service.remove('1');
 
-      expect(mockPrismaService.book.delete).toHaveBeenCalledWith({
-        where: { id: '1' },
-      });
+      expect(mockBookRepository.delete).toHaveBeenCalledWith('1');
     });
   });
 });

@@ -1,21 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthorsService } from './authors.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { Author } from '../entities/author.entity';
 
 describe('AuthorsService', () => {
   let service: AuthorsService;
-  let prismaService: PrismaService;
 
-  const mockPrismaService = {
-    author: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
+  const mockQueryBuilder = {
+    where: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn(),
+  };
+
+  const mockRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
   };
 
   beforeEach(async () => {
@@ -23,14 +29,13 @@ describe('AuthorsService', () => {
       providers: [
         AuthorsService,
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: getRepositoryToken(Author),
+          useValue: mockRepository,
         },
       ],
     }).compile();
 
     service = module.get<AuthorsService>(AuthorsService);
-    prismaService = module.get<PrismaService>(PrismaService);
   });
 
   afterEach(() => {
@@ -57,14 +62,14 @@ describe('AuthorsService', () => {
         updatedAt: new Date(),
       };
 
-      mockPrismaService.author.create.mockResolvedValue(expectedAuthor);
+      mockRepository.create.mockReturnValue(expectedAuthor);
+      mockRepository.save.mockResolvedValue(expectedAuthor);
 
       const result = await service.create(createAuthorDto);
 
       expect(result).toEqual(expectedAuthor);
-      expect(mockPrismaService.author.create).toHaveBeenCalledWith({
-        data: createAuthorDto,
-      });
+      expect(mockRepository.create).toHaveBeenCalledWith(createAuthorDto);
+      expect(mockRepository.save).toHaveBeenCalled();
     });
   });
 
@@ -91,8 +96,7 @@ describe('AuthorsService', () => {
         },
       ];
 
-      mockPrismaService.author.findMany.mockResolvedValue(authors);
-      mockPrismaService.author.count.mockResolvedValue(2);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([authors, 2]);
 
       const result = await service.findAll(1, 10);
 
@@ -100,8 +104,7 @@ describe('AuthorsService', () => {
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
       expect(result.limit).toBe(10);
-      expect(mockPrismaService.author.findMany).toHaveBeenCalled();
-      expect(mockPrismaService.author.count).toHaveBeenCalled();
+      expect(mockQueryBuilder.getManyAndCount).toHaveBeenCalled();
     });
 
     it('should filter authors by search query', async () => {
@@ -117,13 +120,12 @@ describe('AuthorsService', () => {
         },
       ];
 
-      mockPrismaService.author.findMany.mockResolvedValue(authors);
-      mockPrismaService.author.count.mockResolvedValue(1);
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([authors, 1]);
 
       const result = await service.findAll(1, 10, 'John');
 
       expect(result.data).toEqual(authors);
-      expect(mockPrismaService.author.findMany).toHaveBeenCalled();
+      expect(mockQueryBuilder.getManyAndCount).toHaveBeenCalled();
     });
   });
 
@@ -139,18 +141,18 @@ describe('AuthorsService', () => {
         updatedAt: new Date(),
       };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(author);
+      mockRepository.findOne.mockResolvedValue(author);
 
       const result = await service.findOne('1');
 
       expect(result).toEqual(author);
-      expect(mockPrismaService.author.findUnique).toHaveBeenCalledWith({
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
       });
     });
 
     it('should throw NotFoundException if author does not exist', async () => {
-      mockPrismaService.author.findUnique.mockResolvedValue(null);
+      mockRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
     });
@@ -171,16 +173,14 @@ describe('AuthorsService', () => {
       const updateDto = { bio: 'Updated bio' };
       const updatedAuthor = { ...existingAuthor, ...updateDto };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(existingAuthor);
-      mockPrismaService.author.update.mockResolvedValue(updatedAuthor);
+      mockRepository.findOne.mockResolvedValueOnce(existingAuthor);
+      mockRepository.update.mockResolvedValue(undefined);
+      mockRepository.findOne.mockResolvedValueOnce(updatedAuthor);
 
       const result = await service.update('1', updateDto);
 
       expect(result).toEqual(updatedAuthor);
-      expect(mockPrismaService.author.update).toHaveBeenCalledWith({
-        where: { id: '1' },
-        data: updateDto,
-      });
+      expect(mockRepository.update).toHaveBeenCalledWith('1', updateDto);
     });
   });
 
@@ -196,14 +196,12 @@ describe('AuthorsService', () => {
         updatedAt: new Date(),
       };
 
-      mockPrismaService.author.findUnique.mockResolvedValue(author);
-      mockPrismaService.author.delete.mockResolvedValue(author);
+      mockRepository.findOne.mockResolvedValue(author);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
 
       await service.remove('1');
 
-      expect(mockPrismaService.author.delete).toHaveBeenCalledWith({
-        where: { id: '1' },
-      });
+      expect(mockRepository.delete).toHaveBeenCalledWith('1');
     });
   });
 });

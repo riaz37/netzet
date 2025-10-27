@@ -2,12 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { Author } from '../src/entities/author.entity';
+import { Book } from '../src/entities/book.entity';
+import { Repository } from 'typeorm';
 
 describe('BooksController (e2e)', () => {
   let app: INestApplication;
-  let prisma: PrismaService;
+  let authorRepository: Repository<Author>;
+  let bookRepository: Repository<Book>;
   let testAuthorId: string;
 
   beforeAll(async () => {
@@ -33,23 +37,29 @@ describe('BooksController (e2e)', () => {
 
     await app.init();
 
-    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    authorRepository = moduleFixture.get<Repository<Author>>(
+      getRepositoryToken(Author),
+    );
+    bookRepository = moduleFixture.get<Repository<Book>>(
+      getRepositoryToken(Book),
+    );
 
     // Create a test author for book operations
-    const author = await prisma.author.create({
-      data: {
-        firstName: 'Test',
-        lastName: 'Author',
-      },
+    const author = await authorRepository.save({
+      firstName: 'Test',
+      lastName: 'Author',
     });
     testAuthorId = author.id;
   });
 
   afterAll(async () => {
     // Clean up test data
-    await prisma.book.deleteMany({});
-    await prisma.author.deleteMany({});
-    await prisma.$disconnect();
+    try {
+      await bookRepository.query('DELETE FROM books');
+      await authorRepository.query('DELETE FROM authors');
+    } catch (error) {
+      // Ignore cleanup errors
+    }
     await app.close();
   });
 
@@ -137,13 +147,10 @@ describe('BooksController (e2e)', () => {
     let createdBookId: string;
 
     beforeAll(async () => {
-      const book = await prisma.book.create({
-        data: {
-          title: 'Test Book',
-          isbn: '978-0-987654-32-1',
-          authorId: testAuthorId,
-        },
-        include: { author: true },
+      const book = await bookRepository.save({
+        title: 'Test Book',
+        isbn: '978-0-987654-32-1',
+        authorId: testAuthorId,
       });
       createdBookId = book.id;
     });
@@ -170,12 +177,10 @@ describe('BooksController (e2e)', () => {
     let createdBookId: string;
 
     beforeAll(async () => {
-      const book = await prisma.book.create({
-        data: {
-          title: 'Update Test Book',
-          isbn: '978-0-111222-33-4',
-          authorId: testAuthorId,
-        },
+      const book = await bookRepository.save({
+        title: 'Update Test Book',
+        isbn: '978-0-111222-33-4',
+        authorId: testAuthorId,
       });
       createdBookId = book.id;
     });
@@ -204,18 +209,14 @@ describe('BooksController (e2e)', () => {
     let createdBookId: string;
 
     beforeAll(async () => {
-      const book = await prisma.author.create({
-        data: {
-          firstName: 'Delete',
-          lastName: 'Author',
-        },
+      const author = await authorRepository.save({
+        firstName: 'Delete',
+        lastName: 'Author',
       });
-      const bookData = await prisma.book.create({
-        data: {
-          title: 'Delete Test Book',
-          isbn: '978-0-555666-77-8',
-          authorId: book.id,
-        },
+      const bookData = await bookRepository.save({
+        title: 'Delete Test Book',
+        isbn: '978-0-555666-77-8',
+        authorId: author.id,
       });
       createdBookId = bookData.id;
     });

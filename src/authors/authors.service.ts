@@ -1,17 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
-import { Author, Prisma } from '@prisma/client';
+import { Author } from '../entities/author.entity';
 
 @Injectable()
 export class AuthorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Author)
+    private readonly authorRepository: Repository<Author>,
+  ) {}
 
   async create(createAuthorDto: CreateAuthorDto): Promise<Author> {
-    return this.prisma.author.create({
-      data: createAuthorDto,
-    });
+    const author = this.authorRepository.create(createAuthorDto);
+    return this.authorRepository.save(author);
   }
 
   async findAll(
@@ -20,32 +23,25 @@ export class AuthorsService {
     search?: string,
   ): Promise<{ data: Author[]; total: number; page: number; limit: number }> {
     const skip = (page - 1) * limit;
-    const where: Prisma.AuthorWhereInput = search
-      ? {
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
 
-    const [data, total] = await Promise.all([
-      this.prisma.author.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.author.count({ where }),
-    ]);
+    const queryBuilder = this.authorRepository.createQueryBuilder('author');
+
+    if (search) {
+      queryBuilder.where(
+        '(author.firstName ILIKE :search OR author.lastName ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    queryBuilder.skip(skip).take(limit).orderBy('author.createdAt', 'DESC');
+
+    const [data, total] = await queryBuilder.getManyAndCount();
 
     return { data, total, page, limit };
   }
 
   async findOne(id: string): Promise<Author> {
-    const author = await this.prisma.author.findUnique({
-      where: { id },
-    });
+    const author = await this.authorRepository.findOne({ where: { id } });
 
     if (!author) {
       throw new NotFoundException(`Author with ID ${id} not found`);
@@ -56,27 +52,19 @@ export class AuthorsService {
 
   async update(id: string, updateAuthorDto: UpdateAuthorDto): Promise<Author> {
     await this.findOne(id); // Check if exists
-
-    return this.prisma.author.update({
-      where: { id },
-      data: updateAuthorDto,
-    });
+    await this.authorRepository.update(id, updateAuthorDto);
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id); // Check if exists
 
     try {
-      await this.prisma.author.delete({
-        where: { id },
-      });
-    } catch (error) {
-      if (error.code === 'P2003') {
-        throw new NotFoundException(
-          'Cannot delete author with associated books. Please delete the books first.',
-        );
-      }
-      throw error;
+      await this.authorRepository.delete(id);
+    } catch {
+      throw new NotFoundException(
+        'Cannot delete author with associated books. Please delete the books first.',
+      );
     }
   }
 }

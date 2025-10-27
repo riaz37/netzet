@@ -2,12 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { Author } from '../src/entities/author.entity';
+import { Book } from '../src/entities/book.entity';
+import { Repository } from 'typeorm';
 
 describe('AuthorsController (e2e)', () => {
   let app: INestApplication;
-  let prisma: PrismaService;
+  let authorRepository: Repository<Author>;
+  let bookRepository: Repository<Book>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -32,14 +36,22 @@ describe('AuthorsController (e2e)', () => {
 
     await app.init();
 
-    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    authorRepository = moduleFixture.get<Repository<Author>>(
+      getRepositoryToken(Author),
+    );
+    bookRepository = moduleFixture.get<Repository<Book>>(
+      getRepositoryToken(Book),
+    );
   });
 
   afterAll(async () => {
     // Clean up test data
-    await prisma.book.deleteMany({});
-    await prisma.author.deleteMany({});
-    await prisma.$disconnect();
+    try {
+      await bookRepository.query('DELETE FROM books');
+      await authorRepository.query('DELETE FROM authors');
+    } catch (error) {
+      // Ignore cleanup errors
+    }
     await app.close();
   });
 
@@ -114,12 +126,10 @@ describe('AuthorsController (e2e)', () => {
     let createdAuthorId: string;
 
     beforeAll(async () => {
-      const author = await prisma.author.create({
-        data: {
-          firstName: 'Jane',
-          lastName: 'Smith',
-          bio: 'Test author for e2e',
-        },
+      const author = await authorRepository.save({
+        firstName: 'Jane',
+        lastName: 'Smith',
+        bio: 'Test author for e2e',
       });
       createdAuthorId = author.id;
     });
@@ -145,11 +155,9 @@ describe('AuthorsController (e2e)', () => {
     let createdAuthorId: string;
 
     beforeAll(async () => {
-      const author = await prisma.author.create({
-        data: {
-          firstName: 'Update',
-          lastName: 'Test',
-        },
+      const author = await authorRepository.save({
+        firstName: 'Update',
+        lastName: 'Test',
       });
       createdAuthorId = author.id;
     });
@@ -178,11 +186,9 @@ describe('AuthorsController (e2e)', () => {
     let createdAuthorId: string;
 
     beforeAll(async () => {
-      const author = await prisma.author.create({
-        data: {
-          firstName: 'Delete',
-          lastName: 'Test',
-        },
+      const author = await authorRepository.save({
+        firstName: 'Delete',
+        lastName: 'Test',
       });
       createdAuthorId = author.id;
     });
