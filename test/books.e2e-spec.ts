@@ -70,7 +70,7 @@ describe('BooksController (e2e)', () => {
         .post('/books')
         .send({
           title: 'The Great Novel',
-          isbn: '9780123456789',
+          isbn: '9780306406157',
           genre: 'Fantasy',
           publishedDate: '2020-01-01',
           authorId: testAuthorId,
@@ -79,7 +79,7 @@ describe('BooksController (e2e)', () => {
         .expect((res) => {
           expect(res.body).toHaveProperty('id');
           expect(res.body.title).toBe('The Great Novel');
-          expect(res.body.isbn).toBe('9780123456789');
+          expect(res.body.isbn).toBe('9780306406157');
           expect(res.body).toHaveProperty('author');
           expect(res.body.author.id).toBe(testAuthorId);
         });
@@ -161,7 +161,7 @@ describe('BooksController (e2e)', () => {
           .post('/books')
           .send({
             title: 'Test Book',
-            isbn: '9780987654321',
+            isbn: '9781861972712',
             authorId: localAuthorId,
           })
           .expect(201)
@@ -221,7 +221,7 @@ describe('BooksController (e2e)', () => {
           .post('/books')
           .send({
             title: 'Update Test Book',
-            isbn: '9780111222343',
+            isbn: '9780131101630',
             authorId: localAuthorId,
           })
           .expect(201)
@@ -283,7 +283,7 @@ describe('BooksController (e2e)', () => {
           .post('/books')
           .send({
             title: 'Delete Test Book',
-            isbn: '9780555666778',
+            isbn: '9780262033848',
             authorId: author.id,
           })
           .expect(201)

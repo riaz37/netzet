@@ -43,10 +43,29 @@ export class BooksService {
     }
 
     // Create book with author relation
-    const book = this.bookRepository.create(createBookDto);
+    const book = this.bookRepository.create({
+      title: createBookDto.title,
+      isbn: createBookDto.isbn,
+      authorId: author.id,
+      author: author,
+      // Ensure publishedDate is stored as Date if provided
+      publishedDate: createBookDto.publishedDate
+        ? new Date(createBookDto.publishedDate as unknown as string)
+        : undefined,
+      genre: createBookDto.genre,
+    });
 
     // Save the book first
-    const savedBook = await this.bookRepository.save(book);
+    let savedBook: Book;
+    try {
+      savedBook = await this.bookRepository.save(book);
+    } catch (err) {
+      throw new BadRequestException(
+        typeof err?.message === 'string'
+          ? err.message
+          : 'Failed to create book',
+      );
+    }
 
     // Manually attach the author to the saved book for the response
     // We already validated the author exists, so attach it here

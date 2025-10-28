@@ -45,13 +45,7 @@ describe('AuthorsController (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Clean up test data
-    try {
-      await bookRepository.query('DELETE FROM books');
-      await authorRepository.query('DELETE FROM authors');
-    } catch (error) {
-      // Ignore cleanup errors
-    }
+    // Do not truncate shared tables here to avoid interfering with other e2e suites
     await app.close();
   });
 
