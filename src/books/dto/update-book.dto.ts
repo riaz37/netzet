@@ -8,7 +8,7 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CreateBookDto } from './create-book.dto';
+import { CreateBookDto } from '@/books/dto/create-book.dto';
 
 export class UpdateBookDto extends PartialType(CreateBookDto) {
   @ApiPropertyOptional({

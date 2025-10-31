@@ -15,7 +15,7 @@ export class IsISBNConstraint implements ValidatorConstraintInterface {
 
     // Remove all hyphens and spaces
     const cleanISBN = value.replace(/[-\s]/g, '');
-    
+
     // Check if it's a valid ISBN-10 or ISBN-13
     return this.isValidISBN10(cleanISBN) || this.isValidISBN13(cleanISBN);
   }

@@ -7,7 +7,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsISBN } from '../../common/validators/isbn.validator';
+import { IsISBN } from '@/common/validators/isbn.validator';
 
 export class CreateBookDto {
   @ApiProperty({

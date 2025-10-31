@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Author } from './author.entity';
+import { Author } from '@/entities/author.entity';
 
 @Entity('books')
 export class Book {

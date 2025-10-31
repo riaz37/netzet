@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Book } from './book.entity';
+import { Book } from '@/entities/book.entity';
 
 @Entity('authors')
 export class Author {

@@ -20,10 +20,10 @@ import {
   ApiOkResponse,
   ApiNoContentResponse,
 } from '@nestjs/swagger';
-import { AuthorsService } from './authors.service';
-import { CreateAuthorDto } from './dto/create-author.dto';
-import { UpdateAuthorDto } from './dto/update-author.dto';
-import { AuthorsQueryDto } from './dto/authors-query.dto';
+import { AuthorsService } from '@/authors/authors.service';
+import { CreateAuthorDto } from '@/authors/dto/create-author.dto';
+import { UpdateAuthorDto } from '@/authors/dto/update-author.dto';
+import { AuthorsQueryDto } from '@/authors/dto/authors-query.dto';
 
 @ApiTags('authors')
 @Controller('authors')

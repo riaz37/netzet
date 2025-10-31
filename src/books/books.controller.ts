@@ -20,10 +20,10 @@ import {
   ApiOkResponse,
   ApiNoContentResponse,
 } from '@nestjs/swagger';
-import { BooksService } from './books.service';
-import { CreateBookDto } from './dto/create-book.dto';
-import { UpdateBookDto } from './dto/update-book.dto';
-import { BooksQueryDto } from './dto/books-query.dto';
+import { BooksService } from '@/books/books.service';
+import { CreateBookDto } from '@/books/dto/create-book.dto';
+import { UpdateBookDto } from '@/books/dto/update-book.dto';
+import { BooksQueryDto } from '@/books/dto/books-query.dto';
 
 @ApiTags('books')
 @Controller('books')

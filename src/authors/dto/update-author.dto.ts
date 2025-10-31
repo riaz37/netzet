@@ -6,7 +6,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CreateAuthorDto } from './create-author.dto';
+import { CreateAuthorDto } from '@/authors/dto/create-author.dto';
 
 export class UpdateAuthorDto extends PartialType(CreateAuthorDto) {
   @ApiPropertyOptional({

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { AuthorsService } from './authors.service';
-import { Author } from '../entities/author.entity';
+import { AuthorsService } from '@/authors/authors.service';
+import { Author } from '@/entities/author.entity';
 
 describe('AuthorsService', () => {
   let service: AuthorsService;
