@@ -1,15 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { BooksService } from '@/books/books.service';
 import { Book } from '@/entities/book.entity';
 import { Author } from '@/entities/author.entity';
 
 describe('BooksService', () => {
   let service: BooksService;
-  let bookRepository: Repository<Book>;
-  let authorRepository: Repository<Author>;
 
   const mockBookQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -50,10 +47,6 @@ describe('BooksService', () => {
     }).compile();
 
     service = module.get<BooksService>(BooksService);
-    bookRepository = module.get<Repository<Book>>(getRepositoryToken(Book));
-    authorRepository = module.get<Repository<Author>>(
-      getRepositoryToken(Author),
-    );
   });
 
   afterEach(() => {
@@ -101,7 +94,14 @@ describe('BooksService', () => {
       expect(mockAuthorRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
       });
-      expect(mockBookRepository.create).toHaveBeenCalledWith(createBookDto);
+      expect(mockBookRepository.create).toHaveBeenCalledWith({
+        title: createBookDto.title,
+        isbn: createBookDto.isbn,
+        authorId: author.id,
+        author: author,
+        publishedDate: new Date(createBookDto.publishedDate),
+        genre: createBookDto.genre,
+      });
       expect(mockBookRepository.save).toHaveBeenCalled();
     });
 

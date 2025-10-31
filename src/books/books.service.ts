@@ -20,7 +20,6 @@ export class BooksService {
   ) {}
 
   async create(createBookDto: CreateBookDto): Promise<Book> {
-    // Check if author exists
     const author = await this.authorRepository.findOne({
       where: { id: createBookDto.authorId },
     });
@@ -31,7 +30,6 @@ export class BooksService {
       );
     }
 
-    // Check if ISBN already exists
     const existingBook = await this.bookRepository.findOne({
       where: { isbn: createBookDto.isbn },
     });
@@ -42,20 +40,18 @@ export class BooksService {
       );
     }
 
-    // Create book with author relation
+    // TypeORM doesn't automatically populate relations on save, so we attach author manually
     const book = this.bookRepository.create({
       title: createBookDto.title,
       isbn: createBookDto.isbn,
       authorId: author.id,
       author: author,
-      // Ensure publishedDate is stored as Date if provided
       publishedDate: createBookDto.publishedDate
         ? new Date(createBookDto.publishedDate as unknown as string)
         : undefined,
       genre: createBookDto.genre,
     });
 
-    // Save the book first
     let savedBook: Book;
     try {
       savedBook = await this.bookRepository.save(book);
@@ -67,8 +63,6 @@ export class BooksService {
       );
     }
 
-    // Manually attach the author to the saved book for the response
-    // We already validated the author exists, so attach it here
     savedBook.author = author;
 
     return savedBook;
@@ -118,9 +112,8 @@ export class BooksService {
   }
 
   async update(id: string, updateBookDto: UpdateBookDto): Promise<Book> {
-    await this.findOne(id); // Check if exists
+    await this.findOne(id);
 
-    // If updating authorId, check if new author exists
     if (updateBookDto.authorId) {
       const author = await this.authorRepository.findOne({
         where: { id: updateBookDto.authorId },
@@ -133,7 +126,7 @@ export class BooksService {
       }
     }
 
-    // If updating ISBN, check if it already exists
+    // Prevent ISBN conflicts with other books
     if (updateBookDto.isbn) {
       const existingBook = await this.bookRepository.findOne({
         where: { isbn: updateBookDto.isbn },
@@ -151,7 +144,7 @@ export class BooksService {
   }
 
   async remove(id: string): Promise<void> {
-    await this.findOne(id); // Check if exists
+    await this.findOne(id);
     await this.bookRepository.delete(id);
   }
 }

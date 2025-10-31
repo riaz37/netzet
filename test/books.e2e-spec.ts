@@ -258,6 +258,36 @@ describe('BooksController (e2e)', () => {
         });
     });
 
+    it('should update a book with hyphenated ISBN-13 format', () => {
+      // Use a valid ISBN-13 with hyphenated format
+      // 978-0-306-40615-7 is a valid ISBN-13 (The Great Gatsby)
+      // Using a variant with different check digit to avoid conflicts
+      const hyphenatedIsbn = '978-0-7432-7356-5';
+      return request(app.getHttpServer())
+        .patch(`/books/${createdBookId}`)
+        .send({
+          title: 'The Great Gatsby',
+          isbn: hyphenatedIsbn,
+          publishedDate: '1925-04-10',
+          genre: 'Fiction',
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.title).toBe('The Great Gatsby');
+          expect(res.body.isbn).toBe(hyphenatedIsbn);
+          expect(res.body.genre).toBe('Fiction');
+        });
+    });
+
+    it('should return 400 for invalid ISBN format', () => {
+      return request(app.getHttpServer())
+        .patch(`/books/${createdBookId}`)
+        .send({
+          isbn: 'invalid-isbn',
+        })
+        .expect(400);
+    });
+
     it('should return 404 for non-existent book', () => {
       return request(app.getHttpServer())
         .patch('/books/00000000-0000-0000-0000-000000000000')

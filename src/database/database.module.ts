@@ -12,8 +12,10 @@ import { Book } from '@/entities/book.entity';
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
         entities: [Author, Book],
-        synchronize: true,
-        logging: false,
+        // Only enable synchronize in development to prevent data loss
+        // In production, use migrations instead
+        synchronize: configService.get('NODE_ENV') === 'development',
+        logging: configService.get('NODE_ENV') === 'development',
         ssl: {
           rejectUnauthorized: false,
         },

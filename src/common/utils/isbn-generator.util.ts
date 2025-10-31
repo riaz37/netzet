@@ -8,25 +8,22 @@ export class IsbnGeneratorUtil {
    * @returns A valid ISBN-13 string with hyphens
    */
   static generateValidISBN13(groupIdentifier?: number): string {
-    // Generate random publisher and title identifiers
-    const publisher = this.generateRandomNumber(1000, 9999).toString(); // 4 digits
-    const title = this.generateRandomNumber(1000, 9999).toString(); // 4 digits
+    const publisher = this.generateRandomNumber(1000, 9999).toString();
+    const title = this.generateRandomNumber(1000, 9999).toString();
 
-    // Construct ISBN without check digit
     const prefix = '978';
     const group = (
       groupIdentifier || this.generateRandomNumber(0, 9)
     ).toString();
     const isbnWithoutCheck = prefix + group + publisher + title;
 
-    // Validate we have exactly 12 digits
     if (isbnWithoutCheck.length !== 12) {
       throw new Error(
         `Invalid ISBN structure: expected 12 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`,
       );
     }
 
-    // Calculate checksum digit
+    // ISBN-13 checksum: alternating 1 and 3 multipliers
     let sum = 0;
     for (let i = 0; i < 12; i++) {
       const digit = parseInt(isbnWithoutCheck[i]);
@@ -34,10 +31,8 @@ export class IsbnGeneratorUtil {
     }
     const checkDigit = (10 - (sum % 10)) % 10;
 
-    // Construct final ISBN
     const validISBN = isbnWithoutCheck + checkDigit;
 
-    // Format with hyphens: 978-{group}-{publisher}-{title}-{check}
     return (
       validISBN.substring(0, 3) +
       '-' +
@@ -56,22 +51,19 @@ export class IsbnGeneratorUtil {
    * @returns A valid ISBN-10 string with hyphens
    */
   static generateValidISBN10(): string {
-    // Generate random ISBN-10 components (need exactly 9 digits total)
-    const group = this.generateRandomNumber(1, 9).toString(); // 1 digit
-    const publisher = this.generateRandomNumber(100, 999).toString(); // 3 digits
-    const title = this.generateRandomNumber(10000, 99999).toString(); // 5 digits
+    const group = this.generateRandomNumber(1, 9).toString();
+    const publisher = this.generateRandomNumber(100, 999).toString();
+    const title = this.generateRandomNumber(10000, 99999).toString();
 
-    // Construct ISBN without check digit (9 digits)
     const isbnWithoutCheck = group + publisher + title;
 
-    // Debug: ensure we have exactly 9 digits
     if (isbnWithoutCheck.length !== 9) {
       throw new Error(
         `Invalid ISBN-10 structure: expected 9 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`,
       );
     }
 
-    // Calculate checksum digit
+    // ISBN-10 checksum: sum of digits multiplied by position weight (10-i), mod 11
     let sum = 0;
     for (let i = 0; i < 9; i++) {
       const digit = parseInt(isbnWithoutCheck[i]);
@@ -83,22 +75,18 @@ export class IsbnGeneratorUtil {
       sum += digit * (10 - i);
     }
 
-    // Check digit can be 0-9 or X (10)
     const remainder = sum % 11;
     const checkDigit = remainder === 0 ? 0 : 11 - remainder;
     const checkChar = checkDigit === 10 ? 'X' : checkDigit.toString();
 
-    // Ensure we have a valid check character
     if (isNaN(checkDigit) || checkDigit < 0 || checkDigit > 10) {
       throw new Error(
         `Invalid check digit calculation: ${checkDigit} for sum ${sum}`,
       );
     }
 
-    // Construct final ISBN
     const validISBN = isbnWithoutCheck + checkChar;
 
-    // Format with hyphens (1-3-5-1)
     return (
       validISBN.substring(0, 1) +
       '-' +

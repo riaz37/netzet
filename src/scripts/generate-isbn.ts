@@ -19,7 +19,6 @@ try {
     console.log('✅ Valid ISBN-13:');
     console.log(`   ${isbn}\n`);
 
-    // Also generate ISBN-10
     const isbn10 = IsbnGeneratorUtil.generateValidISBN10();
     console.log('✅ Valid ISBN-10:');
     console.log(`   ${isbn10}\n`);

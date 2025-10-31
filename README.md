@@ -1,6 +1,6 @@
 # Book Management System
 
-A production-grade RESTful API for managing books and authors built with NestJS, Prisma, and PostgreSQL.
+A production-grade RESTful API for managing books and authors built with NestJS, TypeORM, and PostgreSQL.
 
 ## 🚀 Features
 
@@ -16,7 +16,7 @@ A production-grade RESTful API for managing books and authors built with NestJS,
 
 - **Framework:** NestJS (v10)
 - **Database:** PostgreSQL
-- **ORM:** Prisma
+- **ORM:** TypeORM
 - **Validation:** class-validator, class-transformer
 - **Testing:** Jest, Supertest
 - **TypeScript** with strict type checking
@@ -55,21 +55,19 @@ A production-grade RESTful API for managing books and authors built with NestJS,
 
 4. **Set up the database**
    ```bash
-   # Generate Prisma Client
-   npx prisma generate
+   # Create database tables (TypeORM will auto-sync in development)
+   # Or run migrations for production
+   pnpm run migration:run
 
-   # Run migrations
-   npx prisma migrate dev --name init
-
-   # (Optional) View database in Prisma Studio
-   npx prisma studio
+   # Generate a new migration
+   pnpm run migration:generate src/migrations/MigrationName
    ```
 
 ## 🚀 Running the Application
 
 ```bash
 # Development mode
-pnpm run start:dev
+pnpm run dev
 
 # Production mode
 pnpm run start:prod
@@ -79,6 +77,8 @@ pnpm run build
 ```
 
 The API will be available at `http://localhost:3000`
+
+**API Documentation (Swagger)** is available at `http://localhost:3000/api`
 
 ## 📖 API Endpoints
 
@@ -215,16 +215,27 @@ src/
 │   ├── books.service.ts
 │   ├── books.service.spec.ts   # Unit tests
 │   └── books.module.ts
-├── prisma/               # Database module
-│   ├── prisma.service.ts
-│   └── prisma.module.ts
+├── database/             # Database module
+│   ├── database.service.ts
+│   └── database.module.ts
+├── entities/             # TypeORM entities
+│   ├── author.entity.ts
+│   └── book.entity.ts
+├── migrations/            # Database migrations
+├── data-source.ts         # TypeORM data source configuration
 ├── common/               # Shared utilities
 │   ├── dto/
 │   │   └── pagination.dto.ts
 │   ├── filters/
 │   │   └── http-exception.filter.ts
-│   └── pipes/
-│       └── validation.pipe.ts
+│   ├── pipes/
+│   │   └── validation.pipe.ts
+│   ├── utils/
+│   │   └── isbn-generator.util.ts
+│   └── validators/
+│       └── isbn.validator.ts
+├── scripts/               # Utility scripts
+│   └── generate-isbn.ts  # ISBN generation script
 ├── app.module.ts
 └── main.ts
 test/
@@ -245,14 +256,20 @@ This project follows **SOLID principles**:
 ## 🔧 Development
 
 ```bash
-# Generate Prisma Client
-npx prisma generate
+# Generate a new TypeORM migration
+pnpm run migration:generate src/migrations/MigrationName
 
-# Create a new migration
-npx prisma migrate dev --name <migration-name>
+# Run pending migrations
+pnpm run migration:run
 
-# View database
-npx prisma studio
+# Revert last migration
+pnpm run migration:revert
+
+# Run TypeORM CLI
+pnpm run typeorm
+
+# Generate valid ISBN numbers
+pnpm run generate:isbn
 
 # Format code
 pnpm run format
@@ -271,10 +288,23 @@ We chose **PostgreSQL** over SQLite for this project because:
 2. **Advanced Features:** Support for complex queries, JSON operations, full-text search
 3. **Concurrent Access:** Better handling of multiple simultaneous connections
 4. **Scalability:** Can handle larger datasets and higher traffic loads
-5. **Type Safety:** Excellent type support with Prisma
+5. **Type Safety:** Excellent type support with TypeORM
 6. **Relationships:** Strong foreign key constraints and referential integrity
 
 SQLite is excellent for development and small applications, but PostgreSQL provides the scalability and features needed for a production application.
+
+## 📚 Additional Features
+
+### ISBN Generator Utility
+
+The project includes a utility for generating and validating ISBN numbers:
+- Supports both ISBN-10 and ISBN-13 formats
+- Includes validation logic
+- Can be used via script: `pnpm run generate:isbn`
+
+### API Documentation
+
+Swagger/OpenAPI documentation is automatically available at `/api` when the application is running. This provides interactive API documentation where you can test endpoints directly from your browser.
 
 ## 🤝 Contributing
 

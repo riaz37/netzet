@@ -5,10 +5,10 @@ import {
   IsUUID,
   MinLength,
   MaxLength,
-  Matches,
 } from 'class-validator';
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreateBookDto } from '@/books/dto/create-book.dto';
+import { IsISBN } from '@/common/validators/isbn.validator';
 
 export class UpdateBookDto extends PartialType(CreateBookDto) {
   @ApiPropertyOptional({
@@ -26,13 +26,10 @@ export class UpdateBookDto extends PartialType(CreateBookDto) {
   @ApiPropertyOptional({
     description: 'ISBN number of the book (ISBN-10 or ISBN-13)',
     example: '978-0-7432-7356-5',
-    pattern: '^(\\d{13}|\\d{3}-\\d{1}-\\d{2}-\\d{5}-\\d{1}|\\d{3}-\\d{10})$',
   })
   @IsOptional()
   @IsString()
-  @Matches(/^(\d{13}|\d{3}-\d{1}-\d{2}-\d{5}-\d{1}|\d{3}-\d{10})$/i, {
-    message: 'isbn must be a valid ISBN-10 or ISBN-13 format',
-  })
+  @IsISBN()
   isbn?: string;
 
   @ApiPropertyOptional({

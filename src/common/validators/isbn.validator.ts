@@ -8,15 +8,14 @@ import {
 
 @ValidatorConstraint({ name: 'isISBN', async: false })
 export class IsISBNConstraint implements ValidatorConstraintInterface {
-  validate(value: any, args: ValidationArguments) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  validate(value: any, _args: ValidationArguments) {
     if (typeof value !== 'string') {
       return false;
     }
 
-    // Remove all hyphens and spaces
     const cleanISBN = value.replace(/[-\s]/g, '');
 
-    // Check if it's a valid ISBN-10 or ISBN-13
     return this.isValidISBN10(cleanISBN) || this.isValidISBN13(cleanISBN);
   }
 
@@ -25,12 +24,11 @@ export class IsISBNConstraint implements ValidatorConstraintInterface {
       return false;
     }
 
-    // Check if all characters are digits except possibly the last one (which can be X)
     if (!/^\d{9}[\dX]$/.test(isbn)) {
       return false;
     }
 
-    // Calculate checksum
+    // ISBN-10 checksum: sum of digits multiplied by position weight, mod 11
     let sum = 0;
     for (let i = 0; i < 9; i++) {
       sum += parseInt(isbn[i]) * (10 - i);
@@ -45,12 +43,11 @@ export class IsISBNConstraint implements ValidatorConstraintInterface {
       return false;
     }
 
-    // Check if all characters are digits
     if (!/^\d{13}$/.test(isbn)) {
       return false;
     }
 
-    // Calculate checksum
+    // ISBN-13 checksum: alternating 1 and 3 multipliers, mod 10
     let sum = 0;
     for (let i = 0; i < 12; i++) {
       const digit = parseInt(isbn[i]);
@@ -61,13 +58,14 @@ export class IsISBNConstraint implements ValidatorConstraintInterface {
     return checkDigit === parseInt(isbn[12]);
   }
 
-  defaultMessage(args: ValidationArguments) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  defaultMessage(_args: ValidationArguments) {
     return 'isbn must be a valid ISBN-10 or ISBN-13 format';
   }
 }
 
 export function IsISBN(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,

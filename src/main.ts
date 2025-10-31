@@ -7,7 +7,6 @@ import { HttpExceptionFilter } from '@/common/filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('Netzet API')
     .setDescription('A library management system API for books and authors')
@@ -19,7 +18,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // Enable global validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -31,10 +29,8 @@ async function bootstrap() {
     }),
   );
 
-  // Enable global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Enable CORS
   app.enableCors();
 
   const port = process.env.PORT ?? 3000;
