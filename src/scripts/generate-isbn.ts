@@ -23,7 +23,6 @@ try {
     const isbn10 = IsbnGeneratorUtil.generateValidISBN10();
     console.log('✅ Valid ISBN-10:');
     console.log(`   ${isbn10}\n`);
-
   } else {
     const isbns = IsbnGeneratorUtil.generateMultipleISBN13(count);
     console.log('✅ Valid ISBN-13 numbers:\n');
@@ -31,9 +30,7 @@ try {
       console.log(`   ${index + 1}. ${isbn}`);
     });
     console.log('');
-
   }
-
 } catch (error) {
   console.error('❌ Error generating ISBN:', error);
   process.exit(1);

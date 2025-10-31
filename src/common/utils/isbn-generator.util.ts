@@ -14,12 +14,16 @@ export class IsbnGeneratorUtil {
 
     // Construct ISBN without check digit
     const prefix = '978';
-    const group = (groupIdentifier || this.generateRandomNumber(0, 9)).toString();
+    const group = (
+      groupIdentifier || this.generateRandomNumber(0, 9)
+    ).toString();
     const isbnWithoutCheck = prefix + group + publisher + title;
 
     // Validate we have exactly 12 digits
     if (isbnWithoutCheck.length !== 12) {
-      throw new Error(`Invalid ISBN structure: expected 12 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`);
+      throw new Error(
+        `Invalid ISBN structure: expected 12 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`,
+      );
     }
 
     // Calculate checksum digit
@@ -54,15 +58,17 @@ export class IsbnGeneratorUtil {
   static generateValidISBN10(): string {
     // Generate random ISBN-10 components (need exactly 9 digits total)
     const group = this.generateRandomNumber(1, 9).toString(); // 1 digit
-    const publisher = this.generateRandomNumber(100, 999).toString(); // 3 digits  
+    const publisher = this.generateRandomNumber(100, 999).toString(); // 3 digits
     const title = this.generateRandomNumber(10000, 99999).toString(); // 5 digits
 
     // Construct ISBN without check digit (9 digits)
     const isbnWithoutCheck = group + publisher + title;
-    
+
     // Debug: ensure we have exactly 9 digits
     if (isbnWithoutCheck.length !== 9) {
-      throw new Error(`Invalid ISBN-10 structure: expected 9 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`);
+      throw new Error(
+        `Invalid ISBN-10 structure: expected 9 digits, got ${isbnWithoutCheck.length} (${isbnWithoutCheck})`,
+      );
     }
 
     // Calculate checksum digit
@@ -70,7 +76,9 @@ export class IsbnGeneratorUtil {
     for (let i = 0; i < 9; i++) {
       const digit = parseInt(isbnWithoutCheck[i]);
       if (isNaN(digit)) {
-        throw new Error(`Invalid digit at position ${i}: ${isbnWithoutCheck[i]} in ${isbnWithoutCheck}`);
+        throw new Error(
+          `Invalid digit at position ${i}: ${isbnWithoutCheck[i]} in ${isbnWithoutCheck}`,
+        );
       }
       sum += digit * (10 - i);
     }
@@ -79,10 +87,12 @@ export class IsbnGeneratorUtil {
     const remainder = sum % 11;
     const checkDigit = remainder === 0 ? 0 : 11 - remainder;
     const checkChar = checkDigit === 10 ? 'X' : checkDigit.toString();
-    
+
     // Ensure we have a valid check character
     if (isNaN(checkDigit) || checkDigit < 0 || checkDigit > 10) {
-      throw new Error(`Invalid check digit calculation: ${checkDigit} for sum ${sum}`);
+      throw new Error(
+        `Invalid check digit calculation: ${checkDigit} for sum ${sum}`,
+      );
     }
 
     // Construct final ISBN
